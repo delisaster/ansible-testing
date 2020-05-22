@@ -1,5 +1,5 @@
 [General]
-test_directory = ./functional_tests
+test_directory = directory_with_test_repo_cloned
 plans_directory = plans
 inventory = /path/to/ansible/inventory
 report    = ./report.csv

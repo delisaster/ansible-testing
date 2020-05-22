@@ -6,7 +6,7 @@ Simple python wrapper around ansible-runner for performing tests in parallel and
 
 The run-functional.py script executes a number of functional tests in parallel.
 
-**usage: run-functional.py [-c CONFIGFILE] [-p PLAN[,PLAN]...]**
+**usage: run-functional.py -c CONFIGFILE [-p PLAN[,PLAN]...]**
 
 **OPTIONS**
 **-c --config**  
@@ -27,17 +27,16 @@ The following sections are defined:
 
 **General:**
 
-| Key             | Description|
-|-----            |----------  |
-| test_directory  | Directory containing the tests
-| plans_directory | Directory containing test plans
-| inventory       | Path to Ansible inventory
-| report          | File-name where report will be written
-| extra_vars      | Path to file YAML file containing extra Ansible variables
-| iterations      | Number of iterations to run
-| max_failures    | Number of failed iterations after which a test is disabled
-| output_dir      | Directory to store all output of the test runs
-
+| Key             | Description| Default
+|-----            |----------  | ---
+| extra_vars      | Path to YAML file containing Ansible extra-vars | extra_vars.yaml
+|inventory       | Path to Ansible inventory | %(test_directory)s/inventory/hosts
+| iterations      | Number of iterations to run | 20
+| max_failures    | Number of failed iterations after which a test is disabled| 3
+| output_directory| Directory to store all output of the test runs | %(test_directory)s
+| plans_directory | Directory containing test plans | %(test_directory)s/plans
+| report          | File-name where report will be written | report.csv
+| test_directory  | Directory containing the tests. <br> This is the directory containing the _functional_tests_ subdirectory | - / required
 
 **Ansible Runner Settings:**  
 This section contain key-value pairs corresponding to the Ansible Runner library [Settings](https://ansible-runner.readthedocs.io/en/latest/intro.html#env-settings-settings-for-runner-itself).

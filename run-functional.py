@@ -3,6 +3,7 @@
 import argparse
 import ast
 import configparser
+import sys
 import ansible_runner
 import os
 import re
@@ -27,7 +28,8 @@ def parse_command_line():
         description='Run ansible playbooks concurrently and with loops',
         formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-c', '--config', dest='config_file',
-                        required=False, action='store', help='Config file in ini format')
+                        required=True, action='store',
+                        help='Config file in ini format')
     parser.add_argument('-p', '--plan', dest='test_plan',
                         required=False, action='store',
                         help='Test Plan to use.\nDo note that this option will override any Enabled Tests in the config file')
@@ -36,35 +38,47 @@ def parse_command_line():
 
 def parse_config_file(config_file):
     """Parses config file, returning a ConfigParser object"""
+
+    mandatory_options = ['test_directory']
+
     my_config = configparser.ConfigParser(allow_no_value=True)
     my_config.read(config_file)
+
+    mandatory_options = ['test_directory']
+    for option in mandatory_options:
+        if not my_config.has_option('General', option):
+            sys.exit('Option %s missing in configuration file' % option)
+
     return my_config
 
-def get_tests(test_directory):
+
+def get_tests_from_config():
+    """Read test list from config file """
 
     tests = []
-    if config and config.has_section('Enabled Functional Tests'):
-        enabled_tests = config.items('Enabled Functional Tests')
-        for t in enabled_tests:
-            tests.append(t[0])
-    else:
-        directories = os.listdir(test_directory)
-        for i in directories:
-            if re.match('^[0-9][0-9].*', i):
-                tests.append(i)
+    enabled_tests = config.items('Enabled Functional Tests')
+    for test in enabled_tests:
+        tests.append(test[0])
 
-    return sorted(tests)
+    return tests
 
+
+def get_tests_from_directory():
+    """Return all tests in the functional_tests directory"""
+    return os.listdir(os.path.join(config.get('General', 'test_directory'),
+                                   'functional_tests'))
 
 def get_tests_from_plan(plans):
     """Read the specified plan, returning list of tests to run. """
 
     plans_dir = config.get('General', 'plans_directory',
-                           fallback=None) if config else None
+                           fallback=None)
 
     # fallback
     if not plans_dir:
-        plans_dir = 'plans'
+        plans_dir = os.path.join(config.get('General',
+                                            'test_directory'),
+                                 'plans')
 
     tests = []
     for plan in plans.split(sep=','):
@@ -91,13 +105,24 @@ def get_filename(directory='.', base_name=None):
 
 
 def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, failure_count):
-    inventory = config.get('General', 'inventory', fallback=None) if config else None
+    inventory = config.get('General', 'inventory', fallback=None)
+    if not inventory:
+        inventory = os.path.join(test_directory, 'inventory/hosts')
 
-    extra_vars_file = config.get('General', 'extra_vars', fallback=None) if config else None
+    # Finally, if the inventory really doesn't exist, don't pass it along
+    if not os.path.exists(inventory):
+        inventory = None
+
+    extravars_file = config.get('General',
+                                'extra_vars',
+                                fallback='extra_vars.yaml')
     extravars = None
+    if os.path.exists(extravars_file):
+        with open(extravars_file, 'r') as f:
+            extravars = yaml.safe_load(f)
 
     private_data_dir = test_directory + '/' + test_to_launch
-    output_dir = config.get('General', 'output_dir', fallback=None) if config else None
+    output_dir = config.get('General', 'output_directory', fallback=None)
     if output_dir:
         private_data_dir = output_dir + '/' + test_to_launch
         os.makedirs(private_data_dir, mode=0o700, exist_ok=True)
@@ -124,13 +149,14 @@ def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, f
         with open(private_data_dir + '/env/settings', 'w') as f:
             yaml.safe_dump(settings, f)
 
-    if extra_vars_file:
-        with open(extra_vars_file, 'r') as f:
-            extravars = yaml.safe_load(f)
+    playbook = get_filename(os.path.join(test_directory,
+                                         'functional_tests',
+                                         test_to_launch),
+                            test_type)
 
     (t, r) = ansible_runner.interface.run_async(
         private_data_dir=private_data_dir,
-        playbook=test_directory + '/' + test_to_launch + '/' + test_type + '.yml',
+        playbook=playbook,
         inventory=inventory,
         extravars=extravars,
         rotate_artifacts=keepartifacts,
@@ -238,10 +264,15 @@ if __name__ == '__main__':
     # If plan is given on command line, read tests from there
     if args.test_plan:
         ansible_tests_list = get_tests_from_plan(args.test_plan)
+
+    # Else take tests from config file
+    elif config.has_section('Enabled Functional Tests'):
+        ansible_tests_list = get_tests_from_config()
+
+    # If none of the above, just run all tests in the
+    # functional-tests directory
     else:
-        # Get test from what is in config file,
-        # or otherwise just run all there is
-        ansible_tests_list = get_tests(test_directory)
+        ansible_tests_list = get_tests_from_directory()
 
     ansible_run_list = launch_ansible_tests(ansible_tests_list, 'setup')
     check_ansible_loop(ansible_run_list, 1)
