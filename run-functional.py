@@ -154,13 +154,16 @@ def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, f
                                          test_to_launch),
                             test_type)
 
+    fact_caching = config.get('General', 'fact_caching', fallback=None)
+
     (t, r) = ansible_runner.interface.run_async(
         private_data_dir=private_data_dir,
         playbook=playbook,
         inventory=inventory,
         extravars=extravars,
         rotate_artifacts=keepartifacts,
-        ident=test_type + '_' + str(invocation) + '_' + str(failure_count))
+        ident=test_type + '_' + str(invocation) + '_' + str(failure_count),
+        fact_cache_type=fact_caching)
     return({
         'thread': t,
         'runner': r,
