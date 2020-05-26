@@ -8,7 +8,6 @@ import ansible_runner
 import os
 import re
 import time
-from termcolor import colored
 import yaml
 
 from report import Report
@@ -21,6 +20,14 @@ iterations = 20
 maxfailures = 3
 keepartifacts = 5
 debug = False
+
+ANSI_COLORS = {'cyan': '\033[1;36m',
+               'green': '\033[1;32m',
+               'magenta': '\033[1;35m',
+               'red': '\033[1;31m',
+               'yellow': '\033[1;33m',
+               'reset': '\033[0m'}
+
 
 def parse_command_line():
     """Parses command line and returns a dict with commandline optinons"""
@@ -182,9 +189,9 @@ def launch_ansible_tests(list_of_tests, test_type):
             'iteration': 1,
             'failures': 0
         })
-        print(colored("Launching : {} - {} :{}: iteration {}".format(
-            test, launched_test['runner'].status,
-            test_type, 1), 'yellow')
+        print("{}Launching : {} - {} :{}: iteration {}{}".format(
+            ANSI_COLORS['yellow'], test, launched_test['runner'].status,
+            test_type, 1, ANSI_COLORS['reset'])
         )
     return(running_tests)
 
@@ -210,9 +217,13 @@ def check_ansible_loop(run_list, iteration):
                 report.add_result(test['test_name'], successful=True)
                 if test['iteration'] >= iteration:
                     run_list.remove(test)
-                    print(colored("Complete : {} - {} :{}: iteration {}".format(
-                        test['test_name'], test['runner'].status,
-                        test['test_type'], test['iteration']), 'green')
+                    print("{}Complete : {} - {} :{}: iteration {}{}".format(
+                        ANSI_COLORS['green'],
+                        test['test_name'],
+                        test['runner'].status,
+                        test['test_type'],
+                        test['iteration'],
+                        ANSI_COLORS['reset'])
                     )
                 else:
                     test['iteration'] += 1
@@ -220,23 +231,35 @@ def check_ansible_loop(run_list, iteration):
                         test['test_name'], test_directory, test['test_type'], test['iteration'], test['failures'])
                     test['thread'] = launched_test['thread']
                     test['runner'] = launched_test['runner']
-                    print(colored("Launching : {} - {} :{}: iteration {}".format(
-                        test['test_name'], test['runner'].status,
-                        test['test_type'], test['iteration']), 'yellow')
+                    print("{}Launching : {} - {} :{}: iteration {}{}".format(
+                        ANSI_COLORS['yellow'],
+                        test['test_name'],
+                        test['runner'].status,
+                        test['test_type'],
+                        test['iteration'],
+                        ANSI_COLORS['reset'])
                     )
             elif test['runner'].status == 'running' or test['runner'].status == 'starting':
                 if debug:
-                    print(colored("Running : {} - {} :{}: iteration {}".format(
-                        test['test_name'], test['runner'].status,
-                        test['test_type'], test['iteration']), 'cyan')
+                    print("{}Running : {} - {} :{}: iteration {}{}".format(
+                        ANSI_COLORS['cyan'],
+                        test['test_name'],
+                        test['runner'].status,
+                        test['test_type'],
+                        test['iteration'],
+                        ANSI_COLORS['reset'])
                     )
             else:
                 report.add_result(test['test_name'], successful=False)
                 if test['failures'] >= maxfailures:
                     run_list.remove(test)
-                    print(colored("Error : {} - {}: {}: iteration {} Max failures exceeded, removeing test".format(
-                        test['test_name'], test['runner'].status,
-                        test['test_type'], test['iteration']), 'red')
+                    print("{}Error : {} - {}: {}: iteration {} Max failures exceeded, removeing test{}".format(
+                        ANSI_COLORS['red'],
+                        test['test_name'],
+                        test['runner'].status,
+                        test['test_type'],
+                        test['iteration'],
+                        ANSI_COLORS['reset'])
                     )
                 else:
                     test['failures'] += 1
@@ -244,9 +267,13 @@ def check_ansible_loop(run_list, iteration):
                         test['test_name'], test_directory, test['test_type'], test['iteration'], test['failures'])
                     test['thread'] = launched_test['thread']
                     test['runner'] = launched_test['runner']
-                    print(colored("Re-launching : {} - {} :{}: iteration {}".format(
-                        test['test_name'], test['runner'].status,
-                        test['test_type'], test['iteration']), 'magenta')
+                    print("{}Re-launching : {} - {} :{}: iteration {}{}".format(
+                        ANSI_COLORS['magenta'],
+                        test['test_name'],
+                        test['runner'].status,
+                        test['test_type'],
+                        test['iteration'],
+                        ANSI_COLORS['reset'])
                     )
         time.sleep(2)
 
