@@ -21,11 +21,11 @@ maxfailures = 3
 keepartifacts = 5
 debug = False
 
-ANSI_COLORS = {'cyan': '\033[1;36m',
-               'green': '\033[1;32m',
-               'magenta': '\033[1;35m',
-               'red': '\033[1;31m',
-               'yellow': '\033[1;33m',
+ANSI_COLORS = {'cyan': '\033[36m',
+               'green': '\033[32m',
+               'magenta': '\033[35m',
+               'red': '\033[31m',
+               'yellow': '\033[33m',
                'reset': '\033[0m'}
 
 
