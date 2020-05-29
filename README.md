@@ -30,7 +30,8 @@ The following sections are defined:
 | Key             | Description| Default
 |-----            |----------  | ---
 | extra_vars      | Path to YAML file containing Ansible extra-vars | extra_vars.yaml
-|inventory       | Path to Ansible inventory | %(test_directory)s/inventory/hosts
+| fact_caching    | The [fact caching](https://docs.ansible.com/ansible/latest/reference_appendices/config.html#cache-plugin) to use. <br> Set to _memory_ to revert to Ansible default ephemeral cache. | jsonfile 
+|inventory        | Path to Ansible inventory | %(test_directory)s/inventory/hosts
 | iterations      | Number of iterations to run | 20
 | max_failures    | Number of failed iterations after which a test is disabled| 3
 | output_directory| Directory to store all output of the test runs | %(test_directory)s
