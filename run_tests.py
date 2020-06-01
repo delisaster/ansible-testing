@@ -4,6 +4,7 @@
 import argparse
 import ast
 import configparser
+import random
 import sys
 import ansible_runner
 import os
@@ -124,7 +125,7 @@ def get_filename(directory='.', base_name=None):
         if os.path.exists(f):
             return f
 
-    raise FileNotFoundError(F'Could not find neither {base_name}.yaml nor' +
+    raise FileNotFoundError(F'Could not find neither {base_name}.yaml nor ' +
                             F'{base_name}.yml in {directory}')
 
 
@@ -179,7 +180,7 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
             yaml.safe_dump(settings, f)
 
     playbook = get_filename(os.path.join(test_directory,
-                                         'functional_tests',
+                                         test_type + '_tests',
                                          test_to_launch),
                             'test')
 
@@ -204,6 +205,8 @@ def launch_ansible_tests(lists_of_tests):
     """Launces tests and initialises list of running tests to monitor"""
 
     running_tests = []
+
+    # Launch all functional tests at once
     for test in lists_of_tests['functional']:
         launched_test = launch_ansible_test(test,
                                             'functional',
@@ -221,6 +224,40 @@ def launch_ansible_tests(lists_of_tests):
             ANSI_COLORS['yellow'], test, launched_test['runner'].status,
             'functional', 1, ANSI_COLORS['reset'])
         )
+
+    # And now, also an HA one
+    # We're picking a random one to launch,
+    # the remainder will be added to the run_list unlaunched
+    test = random.choice(lists_of_tests['ha'])
+    launched_test = launch_ansible_test(test,
+                                        'ha',
+                                        1,
+                                        0)
+    running_tests.append({
+        'thread': launched_test['thread'],
+        'runner': launched_test['runner'],
+        'test_name': launched_test['test'],
+        'test_type': 'ha',
+        'iteration': 1,
+        'failures': 0
+    })
+    print("{}Launching : {} - {} :{}: iteration {}{}".format(
+        ANSI_COLORS['yellow'], test, launched_test['runner'].status,
+        'ha', 1, ANSI_COLORS['reset'])
+    )
+
+    # Add remaining tests to run_list unlaunced
+    lists_of_tests['ha'].remove(test)
+    for test in lists_of_tests['ha']:
+        running_tests.append({
+            'thread': None,
+            'runner': None,
+            'test_name': test,
+            'test_type': 'ha',
+            'iteration': 0,
+            'failures': 0
+        })
+
     return(running_tests)
 
 
