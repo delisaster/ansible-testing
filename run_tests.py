@@ -13,7 +13,6 @@ import yaml
 
 from report import Report
 
-test_directory = "./functional_tests"
 ansible_tests_list = []
 ansible_run_list = []
 tests_list = []
@@ -46,8 +45,6 @@ def parse_command_line():
 
 def parse_config_file(config_file):
     """Parses config file, returning a ConfigParser object"""
-
-    mandatory_options = ['test_directory']
 
     my_config = configparser.ConfigParser(allow_no_value=True)
     my_config.read(config_file)
@@ -130,7 +127,12 @@ def get_filename(directory='.', base_name=None):
     raise FileNotFoundError('Could not found plan in' + directory)
 
 
-def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, failure_count):
+def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
+    """Launches the specified test,
+    returning a reference to the running test"""
+
+    test_directory = config.get('General', 'test_directory')
+
     inventory = config.get('General', 'inventory', fallback=None)
     if not inventory:
         inventory = os.path.join(test_directory, 'inventory/hosts')
@@ -193,8 +195,7 @@ def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, f
     return({
         'thread': t,
         'runner': r,
-        'test': test_to_launch,
-        'test_directory': test_directory
+        'test': test_to_launch
     })
 
 
@@ -204,7 +205,6 @@ def launch_ansible_tests(lists_of_tests):
     running_tests = []
     for test in lists_of_tests['functional']:
         launched_test = launch_ansible_test(test,
-                                            test_directory,
                                             'functional',
                                             1,
                                             0)
@@ -212,7 +212,6 @@ def launch_ansible_tests(lists_of_tests):
             'thread': launched_test['thread'],
             'runner': launched_test['runner'],
             'test_name': launched_test['test'],
-            'test_directory': launched_test['test_directory'],
             'test_type': 'functional',
             'iteration': 1,
             'failures': 0
@@ -247,8 +246,10 @@ def check_ansible_loop(run_list, iteration):
                     )
                 else:
                     test['iteration'] += 1
-                    launched_test = launch_ansible_test(
-                        test['test_name'], test_directory, test['test_type'], test['iteration'], test['failures'])
+                    launched_test = launch_ansible_test(test['test_name'],
+                                                        test['test_type'],
+                                                        test['iteration'],
+                                                        test['failures'])
                     test['thread'] = launched_test['thread']
                     test['runner'] = launched_test['runner']
                     print("{}Launching : {} - {} :{}: iteration {}{}".format(
@@ -283,8 +284,10 @@ def check_ansible_loop(run_list, iteration):
                     )
                 else:
                     test['failures'] += 1
-                    launched_test = launch_ansible_test(
-                        test['test_name'], test_directory, test['test_type'], test['iteration'], test['failures'])
+                    launched_test = launch_ansible_test(test['test_name'],
+                                                        test['test_type'],
+                                                        test['iteration'],
+                                                        test['failures'])
                     test['thread'] = launched_test['thread']
                     test['runner'] = launched_test['runner']
                     print("{}Re-launching : {} - {} :{}: iteration {}{}".format(
@@ -302,7 +305,6 @@ if __name__ == '__main__':
     args = parse_command_line()
     config = parse_config_file(args.config_file) if args.config_file else None
 
-    test_directory = config.get('General', 'test_directory')
     iterations = config.getint('General', 'iterations', fallback=20)
     keepartifacts = iterations
     maxfailures = config.getint('General', 'max_failures', fallback=3)
