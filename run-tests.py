@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Framework for executing Infrastructure tests"""
 
 import argparse
 import ast
@@ -62,18 +63,33 @@ def parse_config_file(config_file):
 def get_tests_from_config():
     """Read test list from config file """
 
-    tests = []
-    enabled_tests = config.items('Enabled Functional Tests')
-    for test in enabled_tests:
-        tests.append(test[0])
+    tests = {}
+    tests['functional'] = []
+    tests['ha'] = []
+
+    if config.has_section('Enabled Functional Tests'):
+        enabled_tests = config.items('Enabled Functional Tests')
+        for test in enabled_tests:
+            tests['functional'].append(test[0])
+
+    if config.has_section('Enabled HA Tests'):
+        enabled_tests = config.items('Enabled HA Tests')
+        for test in enabled_tests:
+            tests['ha'].append(test[0])
 
     return tests
 
 
 def get_tests_from_directory():
     """Return all tests in the functional_tests directory"""
-    return os.listdir(os.path.join(config.get('General', 'test_directory'),
-                                   'functional_tests'))
+    return {'functional':
+            os.listdir(os.path.join(config.get('General', 'test_directory'),
+                                    'functional_tests')),
+            'ha':
+            os.listdir(os.path.join(config.get('General', 'test_directory'),
+                                    'ha_tests'))
+            }
+
 
 def get_tests_from_plan(plans):
     """Read the specified plan, returning list of tests to run. """
@@ -87,16 +103,19 @@ def get_tests_from_plan(plans):
                                             'test_directory'),
                                  'plans')
 
-    tests = []
+    tests = {}
+    tests['functional'] = []
+    tests['ha'] = []
     for plan in plans.split(sep=','):
         file_path = get_filename(plans_dir, plan)
 
         with open(file_path, 'r') as f:
             plan = yaml.safe_load(f)
 
-        tests.extend(plan['functional_tests'])
+        tests['functional'].extend(plan['functional_tests'])
+        tests['ha'].extend(plan['ha_tests'])
 
-    return sorted(tests)
+    return tests
 
 
 def get_filename(directory='.', base_name=None):
@@ -179,10 +198,16 @@ def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, f
     })
 
 
-def launch_ansible_tests(list_of_tests, test_type):
+def launch_ansible_tests(lists_of_tests, test_type):
+    """Launces tests and initialises list of running tests to monitor"""
+
     running_tests = []
-    for test in list_of_tests:
-        launched_test = launch_ansible_test(test, test_directory, test_type, 1, 0)
+    for test in lists_of_tests['functional']:
+        launched_test = launch_ansible_test(test,
+                                            test_directory,
+                                            test_type,
+                                            1,
+                                            0)
         running_tests.append({
             'thread': launched_test['thread'],
             'runner': launched_test['runner'],
@@ -285,18 +310,18 @@ if __name__ == '__main__':
     args = parse_command_line()
     config = parse_config_file(args.config_file) if args.config_file else None
 
-    if config:
-        test_directory = config.get('General', 'test_directory', fallback='./functional_tests')
-        iterations = config.getint('General', 'iterations', fallback=20)
-        keepartifacts = iterations
-        maxfailures = config.getint('General', 'max_failures', fallback=3)
+    test_directory = config.get('General', 'test_directory')
+    iterations = config.getint('General', 'iterations', fallback=20)
+    keepartifacts = iterations
+    maxfailures = config.getint('General', 'max_failures', fallback=3)
 
     # If plan is given on command line, read tests from there
     if args.test_plan:
         ansible_tests_list = get_tests_from_plan(args.test_plan)
 
     # Else take tests from config file
-    elif config.has_section('Enabled Functional Tests'):
+    elif (config.has_section('Enabled Functional Tests') or
+            config.has_section('Enabled HA Tests')):
         ansible_tests_list = get_tests_from_config()
 
     # If none of the above, just run all tests in the
