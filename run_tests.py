@@ -178,7 +178,7 @@ def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, f
     playbook = get_filename(os.path.join(test_directory,
                                          'functional_tests',
                                          test_to_launch),
-                            test_type)
+                            'test')
 
     fact_caching = config.get('General', 'fact_caching', fallback=None)
 
@@ -198,14 +198,14 @@ def launch_ansible_test(test_to_launch, test_directory, test_type, invocation, f
     })
 
 
-def launch_ansible_tests(lists_of_tests, test_type):
+def launch_ansible_tests(lists_of_tests):
     """Launces tests and initialises list of running tests to monitor"""
 
     running_tests = []
     for test in lists_of_tests['functional']:
         launched_test = launch_ansible_test(test,
                                             test_directory,
-                                            test_type,
+                                            'functional',
                                             1,
                                             0)
         running_tests.append({
@@ -213,13 +213,13 @@ def launch_ansible_tests(lists_of_tests, test_type):
             'runner': launched_test['runner'],
             'test_name': launched_test['test'],
             'test_directory': launched_test['test_directory'],
-            'test_type': test_type,
+            'test_type': 'functional',
             'iteration': 1,
             'failures': 0
         })
         print("{}Launching : {} - {} :{}: iteration {}{}".format(
             ANSI_COLORS['yellow'], test, launched_test['runner'].status,
-            test_type, 1, ANSI_COLORS['reset'])
+            'functional', 1, ANSI_COLORS['reset'])
         )
     return(running_tests)
 
@@ -228,16 +228,8 @@ def check_ansible_loop(run_list, iteration):
     """Checks on running tests and re-launces them required number of times"""
 
     # Initialize report
-    # Assuming all tests here are in the same stage (setup or test)
-    # A report will only be created for the test stage
-    if run_list[0]['test_type'] == 'test':
-        if config:
-            report_file = config.get('General', 'report', fallback=None)
-        else:
-            report_file = None
-        report = Report(run_list, report_file)
-    else:
-        report = Report()
+    report_file = config.get('General', 'report', fallback='report.csv')
+    report = Report(run_list, report_file)
 
     while run_list:
         for test in run_list:
@@ -329,7 +321,5 @@ if __name__ == '__main__':
     else:
         ansible_tests_list = get_tests_from_directory()
 
-    ansible_run_list = launch_ansible_tests(ansible_tests_list, 'setup')
-    check_ansible_loop(ansible_run_list, 1)
-    ansible_run_list = launch_ansible_tests(ansible_tests_list, 'test')
+    ansible_run_list = launch_ansible_tests(ansible_tests_list)
     check_ansible_loop(ansible_run_list, iterations)
