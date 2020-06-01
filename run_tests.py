@@ -124,7 +124,8 @@ def get_filename(directory='.', base_name=None):
         if os.path.exists(f):
             return f
 
-    raise FileNotFoundError('Could not found plan in' + directory)
+    raise FileNotFoundError(F'Could not find neither {base_name}.yaml nor' +
+                            F'{base_name}.yml in {directory}')
 
 
 def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
