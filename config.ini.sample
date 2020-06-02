@@ -15,3 +15,6 @@ suppress_ansible_output = False
 [Enabled Functional Tests]
 01_test_neutron
 
+[Enabled HA Tests]
+01_test_neutron
+
