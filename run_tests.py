@@ -17,7 +17,6 @@ from report import Report
 ansible_tests_list = []
 ansible_run_list = []
 tests_list = []
-iterations = 20
 maxfailures = 3
 keepartifacts = 5
 debug = False
@@ -220,9 +219,9 @@ def launch_ansible_tests(lists_of_tests):
             'iteration': 1,
             'failures': 0
         })
-        print("{}Launching : {} - {} :{}: iteration {}{}".format(
+        print("{}Launching functional: {} - {} iteration {}{}".format(
             ANSI_COLORS['yellow'], test, launched_test['runner'].status,
-            'functional', 1, ANSI_COLORS['reset'])
+            1, ANSI_COLORS['reset'])
         )
 
     # And now, also an HA one
@@ -241,9 +240,9 @@ def launch_ansible_tests(lists_of_tests):
         'iteration': 1,
         'failures': 0
     })
-    print("{}Launching : {} - {} :{}: iteration {}{}".format(
+    print("{}Launching ha: {} - {} iteration {}{}".format(
         ANSI_COLORS['yellow'], test, launched_test['runner'].status,
-        'ha', 1, ANSI_COLORS['reset'])
+        1, ANSI_COLORS['reset'])
     )
 
     # Add remaining tests to run_list unlaunced
@@ -261,6 +260,74 @@ def launch_ansible_tests(lists_of_tests):
     return(running_tests)
 
 
+def relaunch_test(run_list, test):
+    """ Relaunch a test.
+    If it's a functional one, just relaunch it
+    If it's an HA one, pick a random one from the list)
+    """
+
+    max_iterations = config.getint('General', 'iterations', fallback=20)
+    finished = False
+
+    if test['iteration'] >= max_iterations:
+        run_list.remove(test)
+        finished = True
+        print("{}Complete {}: {} - {} iteration {}{}".format(
+            ANSI_COLORS['green'],
+            test['test_type'],
+            test['test_name'],
+            test['runner'].status,
+            test['iteration'],
+            ANSI_COLORS['reset'])
+        )
+
+    if test['test_type'] == 'functional' and not finished:
+        launched_test = launch_ansible_test(test['test_name'],
+                                            test['test_type'],
+                                            test['iteration'],
+                                            test['failures'])
+        index = run_list.index(test)
+        run_list[index]['thread'] = launched_test['thread']
+        run_list[index]['runner'] = launched_test['runner']
+        run_list[index]['iteration'] += 1
+        print("{}Launching {}: {} - {} iteration {}{}".format(
+                            ANSI_COLORS['yellow'],
+                            test['test_type'],
+                            test['test_name'],
+                            test['runner'].status,
+                            test['iteration'],
+                            ANSI_COLORS['reset']))
+
+    # For HA tests, we want to launch a new test,
+    # even if the current one is finished
+    elif test['test_type'] == 'ha':
+
+        # Start by marking the current test as non-running
+        if not finished:
+            run_list[run_list.index(test)]['runner'] = None
+
+        ha_tests = list(filter(lambda x: x['test_type'] == 'ha', run_list))
+
+        if ha_tests:
+            test_candidate = ha_tests[random.randrange(len(ha_tests))]
+            launched_test = launch_ansible_test(test_candidate['test_name'],
+                                                'ha',
+                                                test_candidate['iteration'],
+                                                test_candidate['failures'])
+
+            index = run_list.index(test_candidate)
+            run_list[index]['thread'] = launched_test['thread']
+            run_list[index]['runner'] = launched_test['runner']
+            run_list[index]['iteration'] += 1
+            print("{}Launching {}: {} - {} iteration {}{}".format(
+                                ANSI_COLORS['yellow'],
+                                test_candidate['test_type'],
+                                test_candidate['test_name'],
+                                test_candidate['runner'].status,
+                                test_candidate['iteration'],
+                                ANSI_COLORS['reset']))
+
+
 def check_ansible_loop(run_list, iteration):
     """Checks on running tests and re-launces them required number of times"""
 
@@ -269,35 +336,15 @@ def check_ansible_loop(run_list, iteration):
     report = Report(run_list, report_file)
 
     while run_list:
-        for test in run_list:
+
+        # filter out only tests which are running
+        running_tests = filter(lambda x: x['runner'], run_list)
+
+        for test in running_tests:
             if test['runner'].status == 'successful':
                 report.add_result(test['test_name'], successful=True)
-                if test['iteration'] >= iteration:
-                    run_list.remove(test)
-                    print("{}Complete : {} - {} :{}: iteration {}{}".format(
-                        ANSI_COLORS['green'],
-                        test['test_name'],
-                        test['runner'].status,
-                        test['test_type'],
-                        test['iteration'],
-                        ANSI_COLORS['reset'])
-                    )
-                else:
-                    test['iteration'] += 1
-                    launched_test = launch_ansible_test(test['test_name'],
-                                                        test['test_type'],
-                                                        test['iteration'],
-                                                        test['failures'])
-                    test['thread'] = launched_test['thread']
-                    test['runner'] = launched_test['runner']
-                    print("{}Launching : {} - {} :{}: iteration {}{}".format(
-                        ANSI_COLORS['yellow'],
-                        test['test_name'],
-                        test['runner'].status,
-                        test['test_type'],
-                        test['iteration'],
-                        ANSI_COLORS['reset'])
-                    )
+                relaunch_test(run_list, test)
+
             elif test['runner'].status == 'running' or test['runner'].status == 'starting':
                 if debug:
                     print("{}Running : {} - {} :{}: iteration {}{}".format(
@@ -321,21 +368,9 @@ def check_ansible_loop(run_list, iteration):
                         ANSI_COLORS['reset'])
                     )
                 else:
-                    test['failures'] += 1
-                    launched_test = launch_ansible_test(test['test_name'],
-                                                        test['test_type'],
-                                                        test['iteration'],
-                                                        test['failures'])
-                    test['thread'] = launched_test['thread']
-                    test['runner'] = launched_test['runner']
-                    print("{}Re-launching : {} - {} :{}: iteration {}{}".format(
-                        ANSI_COLORS['magenta'],
-                        test['test_name'],
-                        test['runner'].status,
-                        test['test_type'],
-                        test['iteration'],
-                        ANSI_COLORS['reset'])
-                    )
+                    runlist_index = run_list.index(test)
+                    run_list[runlist_index]['failures'] += 1
+                    relaunch_test(run_list, test)
         time.sleep(2)
 
 
