@@ -77,12 +77,22 @@ def get_tests_from_config():
 
 def get_tests_from_directory():
     """Return all tests in the functional_tests directory"""
-    return {'functional':
-            os.listdir(os.path.join(config.get('General', 'test_directory'),
-                                    'functional_tests')),
-            'ha':
-            os.listdir(os.path.join(config.get('General', 'test_directory'),
-                                    'ha_tests'))
+
+    functional_path = os.path.join(config.get('General', 'test_directory'),
+                                   'functional_tests')
+    ha_path = os.path.join(config.get('General', 'test_directory'), 'ha_tests')
+
+    functional_tests = []
+    ha_tests = []
+
+    if os.path.exists(functional_path):
+        functional_tests = os.listdir(functional_path)
+
+    if os.path.exists(ha_path):
+        ha_tests = os.listdir(ha_path)
+
+    return {'functional': functional_tests,
+            'ha': ha_tests
             }
 
 
@@ -107,8 +117,8 @@ def get_tests_from_plan(plans):
         with open(file_path, 'r') as f:
             plan = yaml.safe_load(f)
 
-        tests['functional'].extend(plan['functional_tests'])
-        tests['ha'].extend(plan['ha_tests'])
+        tests['functional'].extend(plan.get('functional_tests', []))
+        tests['ha'].extend(plan.get('ha_tests', []))
 
     return tests
 
@@ -228,35 +238,36 @@ def launch_ansible_tests(lists_of_tests):
     # And now, also an HA one
     # We're picking a random one to launch,
     # the remainder will be added to the run_list unlaunched
-    test = random.choice(lists_of_tests['ha'])
-    launched_test = launch_ansible_test(test,
-                                        'ha',
-                                        1,
-                                        0)
-    running_tests.append({
-        'thread': launched_test['thread'],
-        'runner': launched_test['runner'],
-        'test_name': launched_test['test'],
-        'test_type': 'ha',
-        'iteration': 1,
-        'failures': 0
-    })
-    print("{}Launching ha: {} - {} iteration {}{}".format(
-        ANSI_COLORS['yellow'], test, launched_test['runner'].status,
-        1, ANSI_COLORS['reset'])
-    )
-
-    # Add remaining tests to run_list unlaunced
-    lists_of_tests['ha'].remove(test)
-    for test in lists_of_tests['ha']:
+    if lists_of_tests['ha']:
+        test = random.choice(lists_of_tests['ha'])
+        launched_test = launch_ansible_test(test,
+                                            'ha',
+                                            1,
+                                            0)
         running_tests.append({
-            'thread': None,
-            'runner': None,
-            'test_name': test,
+            'thread': launched_test['thread'],
+            'runner': launched_test['runner'],
+            'test_name': launched_test['test'],
             'test_type': 'ha',
-            'iteration': 0,
+            'iteration': 1,
             'failures': 0
         })
+        print("{}Launching ha: {} - {} iteration {}{}".format(
+            ANSI_COLORS['yellow'], test, launched_test['runner'].status,
+            1, ANSI_COLORS['reset'])
+        )
+
+        # Add remaining tests to run_list unlaunced
+        lists_of_tests['ha'].remove(test)
+        for test in lists_of_tests['ha']:
+            running_tests.append({
+                'thread': None,
+                'runner': None,
+                'test_name': test,
+                'test_type': 'ha',
+                'iteration': 0,
+                'failures': 0
+            })
 
     return(running_tests)
 
