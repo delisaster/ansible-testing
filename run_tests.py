@@ -18,7 +18,6 @@ ansible_tests_list = []
 ansible_run_list = []
 tests_list = []
 maxfailures = 3
-keepartifacts = 5
 debug = False
 
 ANSI_COLORS = {'cyan': '\033[36m',
@@ -185,6 +184,9 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
 
     fact_caching = config.get('General', 'fact_caching', fallback=None)
 
+    # Keep as many generations of artifacts as we have interations
+    keepartifacts = config.getint('General', 'iterations', fallback=20)
+
     (t, r) = ansible_runner.interface.run_async(
         private_data_dir=private_data_dir,
         playbook=playbook,
@@ -328,7 +330,7 @@ def relaunch_test(run_list, test):
                                 ANSI_COLORS['reset']))
 
 
-def check_ansible_loop(run_list, iteration):
+def check_ansible_loop(run_list):
     """Checks on running tests and re-launces them required number of times"""
 
     # Initialize report
@@ -378,8 +380,6 @@ if __name__ == '__main__':
     args = parse_command_line()
     config = parse_config_file(args.config_file) if args.config_file else None
 
-    iterations = config.getint('General', 'iterations', fallback=20)
-    keepartifacts = iterations
     maxfailures = config.getint('General', 'max_failures', fallback=3)
 
     # If plan is given on command line, read tests from there
@@ -397,4 +397,4 @@ if __name__ == '__main__':
         ansible_tests_list = get_tests_from_directory()
 
     ansible_run_list = launch_ansible_tests(ansible_tests_list)
-    check_ansible_loop(ansible_run_list, iterations)
+    check_ansible_loop(ansible_run_list)
