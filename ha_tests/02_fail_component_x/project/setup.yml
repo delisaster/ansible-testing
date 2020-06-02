@@ -1,8 +1,0 @@
----
-- hosts: localhost
-  connection: local
-
-  tasks:
-    - name: no setup here
-      debug:
-        msg: "no setup for this test"

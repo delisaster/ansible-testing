@@ -1,6 +1,0 @@
----
-- hosts: all
-  tasks:
-    - name: exit quick
-      debug:
-        msg: "Test!"
