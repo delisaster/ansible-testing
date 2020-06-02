@@ -17,7 +17,6 @@ from report import Report
 ansible_tests_list = []
 ansible_run_list = []
 tests_list = []
-maxfailures = 3
 debug = False
 
 ANSI_COLORS = {'cyan': '\033[36m',
@@ -269,19 +268,29 @@ def relaunch_test(run_list, test):
     """
 
     max_iterations = config.getint('General', 'iterations', fallback=20)
+    max_failures = config.getint('General', 'max_failures', fallback=3)
     finished = False
 
-    if test['iteration'] >= max_iterations:
+    if test['iteration'] >= max_iterations or test['failures'] >= max_failures:
         run_list.remove(test)
         finished = True
-        print("{}Complete {}: {} - {} iteration {}{}".format(
-            ANSI_COLORS['green'],
-            test['test_type'],
-            test['test_name'],
-            test['runner'].status,
-            test['iteration'],
-            ANSI_COLORS['reset'])
-        )
+
+        if test['failures'] >= max_failures:
+            print(f"{ANSI_COLORS['red']}Error : {test['test_type']}" +
+                  f" {test['test_name']} - {test['runner'].status};" +
+                  f" iteration {test['iteration']} Max failures exceeded," +
+                  f" removeing test{ANSI_COLORS['reset']}")
+
+        # Success
+        else:
+            print("{}Complete {}: {} - {} iteration {}{}".format(
+                ANSI_COLORS['green'],
+                test['test_type'],
+                test['test_name'],
+                test['runner'].status,
+                test['iteration'],
+                ANSI_COLORS['reset'])
+            )
 
     if test['test_type'] == 'functional' and not finished:
         launched_test = launch_ansible_test(test['test_name'],
@@ -337,6 +346,12 @@ def check_ansible_loop(run_list):
     report_file = config.get('General', 'report', fallback='report.csv')
     report = Report(run_list, report_file)
 
+    # Good thing to keep in mind:
+    # iteration - Currently running iteration
+    #  (as opposed to completed ones)
+    # failures - Number of failed iterations.
+    # Therefore marked after test completes
+
     while run_list:
 
         # filter out only tests which are running
@@ -359,28 +374,14 @@ def check_ansible_loop(run_list):
                     )
             else:
                 report.add_result(test['test_name'], successful=False)
-                if test['failures'] >= maxfailures:
-                    run_list.remove(test)
-                    print("{}Error : {} - {}: {}: iteration {} Max failures exceeded, removeing test{}".format(
-                        ANSI_COLORS['red'],
-                        test['test_name'],
-                        test['runner'].status,
-                        test['test_type'],
-                        test['iteration'],
-                        ANSI_COLORS['reset'])
-                    )
-                else:
-                    runlist_index = run_list.index(test)
-                    run_list[runlist_index]['failures'] += 1
-                    relaunch_test(run_list, test)
+                run_list[run_list.index(test)]['failures'] += 1
+                relaunch_test(run_list, test)
         time.sleep(2)
 
 
 if __name__ == '__main__':
     args = parse_command_line()
     config = parse_config_file(args.config_file) if args.config_file else None
-
-    maxfailures = config.getint('General', 'max_failures', fallback=3)
 
     # If plan is given on command line, read tests from there
     if args.test_plan:
