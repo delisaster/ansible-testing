@@ -6,7 +6,7 @@ report    = ./report.csv
 extra_vars = /path/to/local/ansible/extra_vars
 iterations = 20
 max_failures = 3
-output_dir = /path/to/directory/to/store/output
+output_directory = /path/to/directory/to/store/output
 fact_caching = jsonfile
 
 [Ansible Runner Settings]
