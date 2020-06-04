@@ -1,7 +1,7 @@
 [General]
 test_directory = directory_with_test_repo_cloned
 plans_directory = plans
-inventory = /path/to/ansible/inventory
+inventory = /path/to/ansible/inventory,/path/to/another/inventory
 report    = ./report.csv
 extra_vars = /path/to/local/ansible/extra_vars
 iterations = 20
