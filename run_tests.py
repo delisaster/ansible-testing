@@ -146,9 +146,11 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
     if not inventory:
         inventory = os.path.join(test_directory, 'inventory/hosts')
 
-    # Finally, if the inventory really doesn't exist, don't pass it along
-    if not os.path.exists(inventory):
-        inventory = None
+    inventory_list = inventory.split(',')
+
+    # Finally, if the fallback inventry
+    if len(inventory_list) == 1 and not os.path.exists(inventory_list[0]):
+        inventory_list = None
 
     extravars_file = config.get('General',
                                 'extra_vars',
@@ -199,7 +201,7 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
     (t, r) = ansible_runner.interface.run_async(
         private_data_dir=private_data_dir,
         playbook=playbook,
-        inventory=inventory,
+        inventory=inventory_list,
         extravars=extravars,
         rotate_artifacts=keepartifacts,
         ident=test_type + '_' + str(invocation) + '_' + str(failure_count),
