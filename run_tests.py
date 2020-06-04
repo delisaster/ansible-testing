@@ -148,7 +148,7 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
 
     inventory_list = inventory.split(',')
 
-    # Finally, if the fallback inventry
+    # Finally, if the fallback inventory really doesn't exist, don't pass it along
     if len(inventory_list) == 1 and not os.path.exists(inventory_list[0]):
         inventory_list = None
 
