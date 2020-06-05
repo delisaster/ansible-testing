@@ -123,7 +123,10 @@ output_directory = testing/external/output
 
 If you are going to test image uopload, put an image file into the mounted folder and correspondingly adjust img_filename reference within extravars.
 
-
+## Example
+```
+podman run -v /opt/ansible-testing-framework/mount_to_docker:/testing/external:z -e openstackrc=my_adminrc -e plan=openstack  765ef8246ca8
+```
 
 
 
