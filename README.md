@@ -33,6 +33,8 @@ The following sections are defined:
 | Key             | Description| Default
 |-----            |----------  | ---
 | extra_vars      | Path to YAML file containing Ansible extra-vars | extra_vars.yaml
+| disable_ha_tests| When set, no High Availavility tests will be executed | False
+|disable_functional_tests| When set, no functional tests will be executed | False
 | fact_caching    | The [fact caching](https://docs.ansible.com/ansible/latest/reference_appendices/config.html#cache-plugin) to use. <br> Set to _memory_ to revert to Ansible default ephemeral cache. | jsonfile
 |inventory        | Comma-separated list of Ansible inventories | %(test_directory)s/inventory/hosts
 | iterations      | Number of iterations to run | 20
@@ -69,13 +71,13 @@ It should be noted that specifying a plan file on the command line has precedenc
 
 # run-tests-podman
 
-This section covers building a framework container and some specifics related to running tests using containerized framework. This approach is useful when there is a need to run all the tests from within a locked-down network. It implies that container is built from a RHEL8 machine which has all the containerization prerequisites installed. Later, container file can be exported and imported to any machine within a locked-down network capable of running containers. 
+This section covers building a framework container and some specifics related to running tests using containerized framework. This approach is useful when there is a need to run all the tests from within a locked-down network. It implies that container is built from a RHEL8 machine which has all the containerization prerequisites installed. Later, container file can be exported and imported to any machine within a locked-down network capable of running containers.
 
 ## Building a container image
 
 ```
 podman build .
-``` 
+```
 
 Build process installs all the required packages and copies the entire framework folder to the container image /testing folder.
 
@@ -86,7 +88,7 @@ podman save <image_id> > image_filename.tar
 ```
 This will export previously built image to a file so it can be tranported and used on any other machine.
 
-## Importing the image 
+## Importing the image
 
 ```
 podman load < image_filename.tar
@@ -97,14 +99,14 @@ This will import the image on the any machine where tests are going to be run.
 
 ```
 podman run -v </path/to/folder/containing/needed/files>:/testing/external:z -e openstackrc=<openstackrc_file> -e plan=<plan>  <image_id>
-``` 
+```
 The command will mount local foder containing ansible test repository and all other needed files, to container folder /testing/external. It will take openstackrc file reference and plan reference defined in telco-tests plans folder.
- 
+
 Mandatory files and folders:
 - <test_repository>
 - <config_file>
 - <extravars_file>
-- <openstackrc_file> 
+- <openstackrc_file>
 
 Keep in mind when adjusting config.ini that container is not aware of any files outside /testing/external.
 
@@ -127,7 +129,3 @@ If you are going to test image upload, put an image file into the mounted folder
 ```
 podman run -v /opt/ansible-testing-framework/mount_to_docker:/testing/external:z -e openstackrc=my_adminrc -e plan=openstack  765ef8246ca8
 ```
-
-
-
-
