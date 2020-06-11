@@ -35,7 +35,7 @@ The following sections are defined:
 | extra_vars      | Path to YAML file containing Ansible extra-vars | extra_vars.yaml
 | disable_ha_tests| When set, no High Availavility tests will be executed | False
 |disable_functional_tests| When set, no functional tests will be executed | False
-| fact_caching    | The [fact caching](https://docs.ansible.com/ansible/latest/reference_appendices/config.html#cache-plugin) to use. <br> Set to _memory_ to revert to Ansible default ephemeral cache. | jsonfile
+| fact_caching    | The [fact caching](https://docs.ansible.com/ansible/latest/reference_appendices/config.html#cache-plugin) to use. | memory
 |inventory        | Comma-separated list of Ansible inventories | %(test_directory)s/inventory/hosts
 | iterations      | Number of iterations to run | 20
 | max_failures    | Number of failed iterations after which a test is disabled| 3
