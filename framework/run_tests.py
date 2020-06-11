@@ -420,5 +420,13 @@ if __name__ == '__main__':
     else:
         ansible_tests_list = get_tests_from_directory()
 
+    # Finally, is some test category disabled?
+    if config.getboolean('General', 'disable_ha_tests', fallback=False):
+        ansible_tests_list['ha'] = []
+    if config.getboolean('General',
+                         'disable_functional_tests',
+                         fallback=False):
+        ansible_tests_list['functional'] = []
+
     ansible_run_list = launch_ansible_tests(ansible_tests_list)
     check_ansible_loop(ansible_run_list)
