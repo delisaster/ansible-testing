@@ -202,7 +202,7 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
                                          test_to_launch),
                             'test')
 
-    fact_caching = config.get('General', 'fact_caching', fallback=None)
+    fact_caching = config.get('General', 'fact_caching', fallback='memory')
 
     # Keep as many generations of artifacts as we have interations
     keepartifacts = config.getint('General', 'iterations', fallback=20)
