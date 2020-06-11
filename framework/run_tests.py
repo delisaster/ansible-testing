@@ -6,6 +6,7 @@ import ast
 import configparser
 import random
 import sys
+import tempfile
 import ansible_runner
 import os
 import re
@@ -142,6 +143,14 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
 
     test_directory = config.get('General', 'test_directory')
 
+    output_dir = config.get('General', 'output_directory', fallback=None)
+    if not output_dir:
+        output_dir = os.path.join(test_directory,
+                                  test_type,
+                                  test_to_launch,
+                                  'artifacts')
+    os.makedirs(output_dir, mode=0o700, exist_ok=True)
+
     inventory = config.get('General', 'inventory', fallback=None)
     if not inventory:
         inventory = os.path.join(test_directory, 'inventory/hosts')
@@ -160,33 +169,33 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
         with open(extravars_file, 'r') as f:
             extravars = yaml.safe_load(f)
 
-    private_data_dir = test_directory + '/' + test_to_launch
-    output_dir = config.get('General', 'output_directory', fallback=None)
-    if output_dir:
-        private_data_dir = output_dir + '/' + test_to_launch
-        os.makedirs(private_data_dir, mode=0o700, exist_ok=True)
+    private_data_dir = tempfile.mkdtemp(prefix='Testing_Framework_' +
+                                               f'{test_type}_' +
+                                               f'{test_to_launch}_' +
+                                               f'{invocation}')
 
     if config and config.has_section('Ansible Runner Settings'):
         settings = dict(config.items('Ansible Runner Settings'))
     else:
         settings = None
 
-     # ansible_runner.interface.run _SHOULD_ take a dict here. But it doesn't )-:
-     # So instead we'll write a yaml file into the output dir, this seem to work...
-    if settings and output_dir:
+    # ansible_runner.interface.run _SHOULD_ take a dict here.
+    # But it doesn't )-:
+    # https://github.com/ansible/ansible-runner/issues/461
+    # So instead we'll write a yaml file into the output dir...
 
-        # first convert from strings
-        for v in settings:
-            try:
-                settings[v] = ast.literal_eval(settings[v])
-            except ValueError:
-                pass
+    # first convert from strings
+    for setting in settings:
+        try:
+            settings[setting] = ast.literal_eval(settings[setting])
+        except ValueError:
+            pass
 
-        os.makedirs(private_data_dir + '/env', mode=0o700, exist_ok=True)
-        if os.path.exists(private_data_dir + '/env/settings'):
-            os.remove(private_data_dir + '/env/settings')
-        with open(private_data_dir + '/env/settings', 'w') as f:
-            yaml.safe_dump(settings, f)
+    os.makedirs(os.path.join(private_data_dir, 'env'),
+                mode=0o700,
+                exist_ok=True)
+    with open(os.path.join(private_data_dir, 'env', 'settings'), 'w') as f:
+        yaml.safe_dump(settings, f)
 
     playbook = get_filename(os.path.join(test_directory,
                                          test_type + '_tests',
@@ -203,8 +212,9 @@ def launch_ansible_test(test_to_launch, test_type, invocation, failure_count):
         playbook=playbook,
         inventory=inventory_list,
         extravars=extravars,
+        artifact_dir=output_dir,
         rotate_artifacts=keepartifacts,
-        ident=test_type + '_' + str(invocation) + '_' + str(failure_count),
+        ident=f'{test_type}_{test_to_launch}_{invocation}',
         fact_cache_type=fact_caching)
     return({
         'thread': t,
